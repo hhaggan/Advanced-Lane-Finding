@@ -6,9 +6,6 @@ import cv2
 
 from typing import Tuple, List
 
-src = np.float32([(532, 496), (756, 496), (288, 664), (1016, 664)])
-dist = np.float32([(288, 366), (1016, 366), (288, 664), (1016, 664)])
-verts = np.array([[(0, 720), (640, 405), (640, 405), (1280, 720)]], dtype=np.int32)
 
 class AdvancedLaneFinderError(Exception):
     """Exception to be thrown in case of failure in AdvancedLaneFinding."""
@@ -24,12 +21,23 @@ class AdvancedLaneFinder:
                  magnitude_sobel=(7, 30, 100),
                  direction_sobel=(31, 0.5, 1.0),
                  s_channel_thresh=(170, 255),
-                 warp_perspective=(src, dist),
+                 warp_perspective=(np.float32([(532, 496),
+                                               (756, 496),
+                                               (288, 664),
+                                               (1016, 664)]),
+                                   np.float32([(288, 366),
+                                               (1016, 366),
+                                               (288, 664),
+                                               (1016, 664)])),
                  sliding_window_params=(8, 100, 50),
                  meters_per_pixel=(30/720, 3.7/700),
                  max_recent_xfitted=10,
                  lane_detection_failure_count_before_sliding_window=20,
-                 region_of_interest_verts=verts,
+                 region_of_interest_verts=np.array([[(0, 720),
+                                                     (640, 405),
+                                                     (640, 405),
+                                                     (1280, 720)]],
+                                                   dtype=np.int32),
                  ):
         
         if os.path.isdir(chessboard_image_dir):
@@ -94,6 +102,7 @@ class AdvancedLaneFinder:
 
         self._warp_src_vertices = warp_perspective[0]
         self._warp_dst_vertices = warp_perspective[1]
+        
         self._perspective_transform_matrix = \
             cv2.getPerspectiveTransform(self._warp_src_vertices, self._warp_dst_vertices)
         self._inverse_perspective_transform_matrix = \
@@ -123,58 +132,39 @@ class AdvancedLaneFinder:
         self._max_lane_detection_failures_before_sliding_window = lane_detection_failure_count_before_sliding_window
 
     def get_chessboard_image_list(self) -> List[str]:
-        """Getter for chessboard image path list."""
         return self._chessboard_image_path_list
 
-    def get_calibration_camera_output(self):
-        """Getter for the tuple of calibration matrix, distortion coefficients, rotation and translation vectors."""
+    def get_calibration_camera_output(self) -> Tuple[np.ndarray, np.ndarray, list, list]:
         return (self._calibration_matrix,
                 self._distortion_coefficients,
                 self._rotation_vectors,
                 self._translation_vectors)
 
-    def calibrate_camera(self):
-        """Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
-
-        Return tuple of calibration matrix and distortion coefficients.
-        """
-
-        # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+    def calibrate_camera(self) -> Tuple[np.ndarray, np.ndarray, list, list]:
         objp = np.zeros((6 * 9, 3), np.float32)
         objp[:, :2] = np.mgrid[0:9, 0:6].T.reshape(-1, 2)
 
-        # arrays to store object points and image points from all the images.
         objpoints = []  # 3d points in real world space
         imgpoints = []  # 2d points in image plane.
 
-        # step through the list of chessboard image paths and search for chessboard corners
         for fname in self._chessboard_image_path_list:
             img = cv2.imread(fname)
 
-            # images should have equal shape
-            #assert self._image_size == img.shape[:-1]
-
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-            # find the chessboard corners
             ret, corners = cv2.findChessboardCorners(gray, (9, 6), None)
 
-            # if found, add object points, image points
             if ret:
                 objpoints.append(objp)
                 imgpoints.append(corners)
 
-        # calibrate camera; all object and image points are already collected
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objectPoints=objpoints,
                                                            imagePoints=imgpoints,
                                                            imageSize=img.shape[:-1],
                                                            cameraMatrix=None,
                                                            distCoeffs=None)
 
-        if not ret:
-            raise AdvancedLaneFinderError("Camera calibration has failed.")
-        else:
-            # initialize corresponding class instance fields
+        if ret:
             self._calibration_matrix = mtx
             self._distortion_coefficients = dist
             self._rotation_vectors = rvecs
@@ -184,7 +174,6 @@ class AdvancedLaneFinder:
             return self.get_calibration_camera_output()
 
     def distortion_correction(self, image: np.ndarray) -> np.ndarray:
-        """Apply distortion correction to the input image."""
         return cv2.undistort(image,
                              self._calibration_matrix,
                              self._distortion_coefficients,
@@ -192,47 +181,31 @@ class AdvancedLaneFinder:
                              self._calibration_matrix)
 
     def warp_perspective(self, image):
-        """Calculates a perspective transform from four pairs of the corresponding points."""
-        # warp the image using OpenCV warpPerspective()
-        warped = cv2.warpPerspective(image, self._perspective_transform_matrix, self._image_size[::-1])
-
-        return warped
+        return cv2.warpPerspective(image, self._perspective_transform_matrix, self._image_size[::-1])
 
     def _dir_threshold(self, gray) -> np.ndarray:
-        """Apply threshold to gray scale image using direction of the gradient."""
-        # calculate the x and y gradients
         sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=self._dir_sobel_kernel)
         sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=self._dir_sobel_kernel)
 
-        # take the absolute value of the gradient direction,
-        # apply a threshold, and create a binary image result
         absgraddir = np.arctan2(np.absolute(sobely), np.absolute(sobelx))
         binary_output = np.zeros_like(absgraddir)
         binary_output[(absgraddir >= self._dir_sobel_thresh_min) & (absgraddir <= self._dir_sobel_thresh_max)] = 1
         return binary_output
 
     def _mag_threshold(self, gray) -> np.ndarray:
-        """Apply threshold to gray scale image using magnitude of the gradient."""
-        # take both Sobel x and y gradients
         sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=self._mag_sobel_kernel)
         sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=self._mag_sobel_kernel)
 
-        # calculate the gradient magnitude
         gradmag = np.sqrt(sobelx ** 2 + sobely ** 2)
 
-        # rescale to 8 bit
         scale_factor = np.max(gradmag) / 255
         gradmag = (gradmag / scale_factor).astype(np.uint8)
 
-        # create a binary image of ones where threshold is met, zeros otherwise
         binary_output = np.zeros_like(gradmag)
         binary_output[(gradmag >= self._mag_sobel_thresh_min) & (gradmag <= self._mag_sobel_thresh_max)] = 1
         return binary_output
 
     def _abs_threshold(self, gray, orient) -> np.ndarray:
-        """Apply threshold to gray scale image using absolute value of the gradient for either Sobel_x or Sobel_y."""
-        # apply x or y gradient with the OpenCV Sobel() function
-        # and take the absolute value
         if orient == 'x':
             abs_sobel = np.absolute(cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=self._abs_sobel_x_kernel))
             thresh_min = self._abs_sobel_x_thresh_min
@@ -243,9 +216,7 @@ class AdvancedLaneFinder:
             thresh_max = self._abs_sobel_y_thresh_max
         else:
             raise AdvancedLaneFinderError("'orient' parameter of self._abs_thresh should be either 'x' or 'y'.")
-        # rescale back to 8 bit integer
         scaled_sobel = np.uint8(255 * abs_sobel / np.max(abs_sobel))
-        # create a copy and apply the threshold
         binary_output = np.zeros_like(scaled_sobel)
         binary_output[(scaled_sobel >= thresh_min) & (scaled_sobel <= thresh_max)] = 1
         return binary_output
@@ -253,27 +224,21 @@ class AdvancedLaneFinder:
     def _s_channel_threshold(self, hls):
         s_channel = hls[:, :, 2]  # use S channel
 
-        # create a copy and apply the threshold
         binary_output = np.zeros_like(s_channel)
         binary_output[(s_channel >= self._s_channel_thresh_min) & (s_channel <= self._s_channel_thresh_max)] = 1
         return binary_output
 
     def apply_thresholds(self, image: np.ndarray) -> np.ndarray:
-        """Create a thresholded binary image."""
-        # convert to HLS
         hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
 
-        # gray scale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # binary images
         abs_x_binary = self._abs_threshold(gray, orient='x')
         abs_y_binary = self._abs_threshold(gray, orient='y')
         mag_binary = self._mag_threshold(gray)
         dir_binary = self._dir_threshold(gray)
         s_channel_binary = self._s_channel_threshold(hls)
 
-        # combine thresholded images
         combined = np.zeros_like(dir_binary)
         combined[((abs_x_binary == 1) & (abs_y_binary == 1))
                  | ((mag_binary == 1) & (dir_binary == 1))
@@ -281,49 +246,24 @@ class AdvancedLaneFinder:
         return combined
 
     def region_of_interest(self, image):
-        """Applies an image mask.
-
-        Only keeps the region of the image defined by the polygon
-        formed from `vertices`. The rest of the image is set to black.
-        """
-        # defining a blank mask to start with
         mask = np.zeros_like(image)
 
-        # defining a 3 channel or 1 channel color to fill
-        # the mask with depending on the input image
         if len(image.shape) > 2:
-            channel_count = image.shape[2]  # i.e. 3 or 4 depending on an image
+            channel_count = image.shape[2]
             ignore_mask_color = (255,) * channel_count
         else:
             ignore_mask_color = 255
 
-        # filling pixels inside the polygon defined
-        # by "vertices" with the fill color
         cv2.fillPoly(mask, self._region_of_interest_vertices, ignore_mask_color)
 
-        # returning the image only where mask pixels are nonzero
         masked_image = cv2.bitwise_and(image, mask)
         return masked_image
 
     @staticmethod
     def _weighted_img(img1, img2, α=1.0, β=1.0, λ=0.):
-        """Combines 2 images using weights.
-
-        The result image is computed as follows:
-
-        img1 * α + img2 * β + λ
-        NOTE: img1 and img2 must be the same shape!
-        """
         return cv2.addWeighted(img1, α, img2, β, λ)
 
     def _skip_sliding_window_fit(self, image, draw):
-        """Detect lane pixels and fit to find the lane boundary based on knowledge where the current lane lines are.
-
-        Args:
-            :param image: warped gray scale image
-            :param draw: if true, create output image with fitted line drawn
-        """
-        # initialize some local variables
         margin = self._sliding_window_margin
         nonzero = image.nonzero()
         nonzeroy = np.array(nonzero[0])
@@ -337,26 +277,22 @@ class AdvancedLaneFinder:
         right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin))
                            & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))
 
-        # extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
         lefty = nonzeroy[left_lane_inds]
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
-        # fit a second order polynomial to each lane line
         left_fit = np.polyfit(lefty, leftx, 2)
         right_fit = np.polyfit(righty, rightx, 2)
 
         if draw:
-            # generate x and y values for plotting
             ploty = self._ploty
             left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
             right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
 
-            # create an image to draw on and an image to show the selection window
             out_img = np.dstack((image, image, image))
             window_img = np.zeros_like(out_img)
-            # color in left and right line pixels
+            
             out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
             out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
 
@@ -399,12 +335,6 @@ class AdvancedLaneFinder:
         return out_img
 
     def _sliding_window_fit(self, image, draw):
-        """Detect lane pixels and fit to find the lane boundary using sliding windows technique.
-
-        Args:
-            :param image: warped gray scale image
-            :param draw: if true, create output image with fitted line drawn
-        """
         # choose the number of sliding windows
         nwindows = self._sliding_window_nwindows
 
@@ -532,12 +462,6 @@ class AdvancedLaneFinder:
         return bgr_img
 
     def fit_polynomial(self, image, draw=False):
-        """Detect lane pixels and fit to find the lane boundary.
-
-        Args:
-            :param image: warped gray scale image
-            :param draw: if true, create output image with fitted line drawn
-        """
         if self._left_line.detected \
                 and self._right_line.detected \
                 and (self._lane_detection_failure_count < self._max_lane_detection_failures_before_sliding_window):
@@ -572,7 +496,6 @@ class AdvancedLaneFinder:
         self._update_lane_line(line=self._right_line, fit=right_fit, allx=new_right_line_allx)
 
     def _calculate_curvature(self):
-        """Calculate curvature of left and right lane lines."""
         y_eval = np.max(self._ploty)
 
         # fit new polynomials to x,y in world space
@@ -595,7 +518,6 @@ class AdvancedLaneFinder:
         return left_curverad, right_curverad
 
     def _calculate_bias_from_center(self):
-        """Calculate bias from center of the road."""
         middle = self._image_size[1] / 2
         dist_left = (middle - self._left_line.allx[self._image_size[0]-1])
         dist_right = (self._right_line.allx[self._image_size[0]-1] - middle)
@@ -603,7 +525,6 @@ class AdvancedLaneFinder:
         return (dist_left - dist_right) * self._left_line.meters_per_pixel_x
 
     def draw_polygon(self, undist, warped):
-        """Draw polygon between left and right lane lines."""
         # create an image to draw the lines on
         warp_zero = np.zeros_like(warped).astype(np.uint8)
         color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -648,7 +569,6 @@ class AdvancedLaneFinder:
         return image
 
     def pipeline(self, image, stop_on_step=None):
-        """Apply sequence of transformations to the input image with the intent to draw polygon between lanes."""
         if not self._calibrated:
             self.calibrate_camera()
             if stop_on_step == 'calibrate_camera':
@@ -686,8 +606,6 @@ class AdvancedLaneFinder:
 
 
 class Line:
-    """Class to receive the characteristics of each line detection."""
-
     def __init__(self):
         # was the line detected in the last iteration?
         self.detected = False
