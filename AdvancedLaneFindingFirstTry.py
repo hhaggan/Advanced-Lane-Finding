@@ -7,6 +7,9 @@ import math
 import cv2
 import logging
 
+src = np.float32([(532, 496), (756, 496), (288, 664), (1016, 664)])
+dist = np.float32([(288, 366), (1016, 366), (288, 664), (1016, 664)])
+
 class AdvancedLaneFinderError(Exception):
     """Exception to be thrown in case of failure in AdvancedLaneFinding."""
     pass
@@ -16,14 +19,7 @@ class AdvanceLaneFinding:
                  magnitude_sobel=(7, 30, 100),
                  direction_sobel=(31, 0.5, 1.0),
                  s_channel_thresh=(170, 255),
-                 warp_perspective=(np.float32([(532, 496),
-                                               (756, 496),
-                                               (288, 664),
-                                               (1016, 664)]),
-                                   np.float32([(288, 366),
-                                               (1016, 366),
-                                               (288, 664),
-                                               (1016, 664)])),
+                 warp_perspective=(src, dist),
                  sliding_window_params=(8, 100, 50),
                  meters_per_pixel=(30/720, 3.7/700),
                  max_recent_xfitted=10,

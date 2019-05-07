@@ -30,7 +30,7 @@ class AdvancedLaneFinder:
                  max_recent_xfitted=10,
                  lane_detection_failure_count_before_sliding_window=20,
                  region_of_interest_verts=verts,
-                 ) -> None:
+                 ):
         
         if os.path.isdir(chessboard_image_dir):
             self._chessboard_image_dir = os.path.abspath(chessboard_image_dir)
@@ -126,14 +126,14 @@ class AdvancedLaneFinder:
         """Getter for chessboard image path list."""
         return self._chessboard_image_path_list
 
-    def get_calibration_camera_output(self) -> Tuple[np.ndarray, np.ndarray, list, list]:
+    def get_calibration_camera_output(self):
         """Getter for the tuple of calibration matrix, distortion coefficients, rotation and translation vectors."""
         return (self._calibration_matrix,
                 self._distortion_coefficients,
                 self._rotation_vectors,
                 self._translation_vectors)
 
-    def calibrate_camera(self) -> Tuple[np.ndarray, np.ndarray, list, list]:
+    def calibrate_camera(self):
         """Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
 
         Return tuple of calibration matrix and distortion coefficients.
