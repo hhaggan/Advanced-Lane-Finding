@@ -51,10 +51,10 @@ If you will clone, or download the code, please make sure to delete the output i
 
 Code files for this project: 
 
-This project is mainly composed of 2 code files. The first one is the AdvancedLaneFinder.py, which list all the list of functions for the application pipeline to identify the lane. The second one is the “Project 2 - Advanced Lane Finding”, this file is the start of the project. This is where I defined the images folder, the chess board folder and the input video folder as well as the images outputs and the video outputs.
+This project is mainly composed of 2 code files. The first one is the LaneFinder.py, which list all the list of functions for the application pipeline to identify the lane. The second one is the “Project 2 - Advanced Lane Finding”, this file is the start of the project. This is where I defined the images folder, the chess board folder and the input video folder as well as the images outputs and the video outputs.
 
 This project is using multiple objects to achieve the required target. The first one is the Line, which represents the different characteristics of every line in a lane.
-The AdvancedLaneFinder which identify the list of functions that will achieve the required pipeline.
+The LaneFinder which identify the list of functions that will achieve the required pipeline.
  
 How to test the project:
 ---
