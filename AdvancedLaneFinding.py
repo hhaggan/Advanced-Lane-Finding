@@ -6,6 +6,9 @@ import cv2
 
 from typing import Tuple, List
 
+src = np.float32([(532, 496), (756, 496), (288, 664), (1016, 664)])
+dist = np.float32([(288, 366), (1016, 366), (288, 664), (1016, 664)])
+verts = np.array([[(0, 720), (640, 405), (640, 405), (1280, 720)]], dtype=np.int32)
 
 class AdvancedLaneFinderError(Exception):
     """Exception to be thrown in case of failure in AdvancedLaneFinding."""
@@ -13,8 +16,6 @@ class AdvancedLaneFinderError(Exception):
 
 
 class AdvancedLaneFinder:
-    """Class implementing lane line finding using advanced techniques."""
-
     def __init__(self,
                  image_size=(720, 1280),
                  chessboard_image_dir='chessboard_images',
@@ -23,51 +24,20 @@ class AdvancedLaneFinder:
                  magnitude_sobel=(7, 30, 100),
                  direction_sobel=(31, 0.5, 1.0),
                  s_channel_thresh=(170, 255),
-                 warp_perspective=(np.float32([(532, 496),
-                                               (756, 496),
-                                               (288, 664),
-                                               (1016, 664)]),
-                                   np.float32([(288, 366),
-                                               (1016, 366),
-                                               (288, 664),
-                                               (1016, 664)])),
+                 warp_perspective=(src, dist),
                  sliding_window_params=(8, 100, 50),
                  meters_per_pixel=(30/720, 3.7/700),
                  max_recent_xfitted=10,
                  lane_detection_failure_count_before_sliding_window=20,
-                 region_of_interest_verts=np.array([[(0, 720),
-                                                     (640, 405),
-                                                     (640, 405),
-                                                     (1280, 720)]],
-                                                   dtype=np.int32),
+                 region_of_interest_verts=verts,
                  ) -> None:
-        """Initialize AdvancedLaneFinder instance fields.
-
-        Args:
-            :param chessboard_image_dir: path to directory containig chessboard calibration images
-            :param absolute_sobel_x:  tuple containing Sobel_x kernel size, min and max threshold values for
-                                      absolute value of Sobel_x operator
-            :param absolute_sobel_y:  tuple containing Sobel_y kernel size, min and max threshold values for
-                                      absolute value of Sobel_y operator
-            :param magnitude_sobel: tuple containing Sobel kernel size, min and max threshold values for
-                                    magnitude value of Sobel_x and Sobel_y operators
-            :param direction_sobel: tuple containing Sobel kernel size, min and max threshold values for
-                                    direction value of Sobel_x and Sobel_y operators
-            :param s_channel_thresh: tuple containing min and max threshold values fof S channel of HLS image
-            :param warp_perspective: tuple containing source and destination coordinates
-                                     to calculate a perspective transform
-            :param sliding_window_params: tuple containing parameters for sliding configuration technique used to
-                                          find lanes and fit polynomial; parameters are
-                                          (number of windows, window margin, minimum pixels to recenter window)
-        """
-        # initialize directory with chessboard images
+        
         if os.path.isdir(chessboard_image_dir):
             self._chessboard_image_dir = os.path.abspath(chessboard_image_dir)
             logging.info("Directory with calibration images: %s.", self._chessboard_image_dir)
         else:
             raise AdvancedLaneFinderError("%s directory does not exist." % chessboard_image_dir)
 
-        # initialize list of calibration chessboard images
         self._chessboard_image_path_list = [os.path.join(self._chessboard_image_dir, fname)
                                             for fname in os.listdir(self._chessboard_image_dir)]
         if not self._chessboard_image_path_list:
@@ -75,14 +45,11 @@ class AdvancedLaneFinder:
         else:
             logging.info("There are %d calibration images.", len(self._chessboard_image_path_list))
 
-        # set image size
         self._image_size = image_size
         if len(image_size) != 2:
             raise AdvancedLaneFinderError("Image size should be a pair of (height, width), but got %s." % image_size)
         logging.info("Advanced lane finder accepts images with resolution %s.", self._image_size)
 
-        # image size, calibration matrix, distortion coefficients, rotation vectors, and translation vectors
-        # will be initialized in self.calibrate_camera()
         self._calibration_matrix = None
         self._distortion_coefficients = None
         self._rotation_vectors = None
@@ -90,7 +57,6 @@ class AdvancedLaneFinder:
         self._calibrated = False
         logging.info("Camera calibration will happen only once, while the first image is processed.")
 
-        # thresholds (absolute Sobel_x)
         if absolute_sobel_x[1] > absolute_sobel_x[2]:
             raise AdvancedLaneFinderError(
                 "Thresholds for absolute Sobel_x operator are incorrect; minimum greater than maximum [ %s ]."
@@ -99,77 +65,60 @@ class AdvancedLaneFinder:
         self._abs_sobel_x_thresh_min = absolute_sobel_x[1]
         self._abs_sobel_x_thresh_max = absolute_sobel_x[2]
 
-        # thresholds (absolute Sobel_y)
         if absolute_sobel_y[1] > absolute_sobel_y[2]:
             raise AdvancedLaneFinderError(
-                "Thresholds for absolute Sobel_y operator are incorrect; minimum greater than maximum [ %s ]."
                 % absolute_sobel_y)
         self._abs_sobel_y_kernel = absolute_sobel_y[0]
         self._abs_sobel_y_thresh_min = absolute_sobel_y[1]
         self._abs_sobel_y_thresh_max = absolute_sobel_y[2]
 
-        # thresholds (magnitude Sobel)
         if magnitude_sobel[1] > magnitude_sobel[2]:
             raise AdvancedLaneFinderError(
-                "Thresholds for magnitude Sobel x and y operators are incorrect; minimum greater than maximum [ %s ]."
                 % magnitude_sobel)
         self._mag_sobel_kernel = magnitude_sobel[0]
         self._mag_sobel_thresh_min = magnitude_sobel[1]
         self._mag_sobel_thresh_max = magnitude_sobel[2]
 
-        # thresholds (direction Sobel)
         if direction_sobel[1] > direction_sobel[2]:
             raise AdvancedLaneFinderError(
-                "Thresholds for direction Sobel x and y operators are incorrect; minimum greater than maximum [ %s ]."
                 % direction_sobel)
         self._dir_sobel_kernel = direction_sobel[0]
         self._dir_sobel_thresh_min = direction_sobel[1]
         self._dir_sobel_thresh_max = direction_sobel[2]
 
-        # thresholds (S channel of HLS)
         if s_channel_thresh[0] > s_channel_thresh[1]:
             raise AdvancedLaneFinderError(
-                "Thresholds for S channel of HLS image are incorrect; minimum greater than maximum [ %s ]."
                 % s_channel_thresh)
         self._s_channel_thresh_min = s_channel_thresh[0]
         self._s_channel_thresh_max = s_channel_thresh[1]
 
-        # source and destination coordinates of quadrangle vertices
         self._warp_src_vertices = warp_perspective[0]
         self._warp_dst_vertices = warp_perspective[1]
-        # calculate the perspective transform matrix (and inverse)
         self._perspective_transform_matrix = \
             cv2.getPerspectiveTransform(self._warp_src_vertices, self._warp_dst_vertices)
         self._inverse_perspective_transform_matrix = \
             cv2.getPerspectiveTransform(self._warp_dst_vertices, self._warp_src_vertices)
 
-        # params for sliding window technique used to fit polynomial
         self._sliding_window_nwindows = sliding_window_params[0]
         self._sliding_window_margin = sliding_window_params[1]
         self._sliding_window_minpix = sliding_window_params[2]
 
-        # vertices for region of interest
         self._region_of_interest_vertices = region_of_interest_verts
 
-        # lane lines tracking
         self._left_line = Line()
         self._right_line = Line()
 
-        # set meters per pixel for lines
         self._left_line.meters_per_pixel_y = meters_per_pixel[0]
         self._left_line.meters_per_pixel_x = meters_per_pixel[1]
 
         self._right_line.meters_per_pixel_y = meters_per_pixel[0]
         self._right_line.meters_per_pixel_x = meters_per_pixel[1]
 
-        # set maximum number of curve fit coefficients to store
         self._left_line.max_recent_xfitted = max_recent_xfitted
         self._right_line.max_recent_xfitted = max_recent_xfitted
 
-        # linear space along Y axis
         self._ploty = np.int32(np.linspace(0, self._image_size[0]-1, self._image_size[0]))
 
-        # lane detection failure counter
         self._lane_detection_failure_count = 0
         self._max_lane_detection_failures_before_sliding_window = lane_detection_failure_count_before_sliding_window
 
