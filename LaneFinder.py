@@ -207,6 +207,7 @@ class LaneFinder:
     #Step 5 Detect Lane Lines
     def _weighted_img(self, img1, img2, α=1.0, β=1.0, λ=0.):
         return cv2.addWeighted(img1, α, img2, β, λ)
+    
     def region_of_interest(self, image):
         mask = np.zeros_like(image)
 
@@ -493,6 +494,7 @@ class LaneFinder:
         self._update_lane_line(line=self._left_line, fit=left_fit, allx=new_left_line_allx)
         self._update_lane_line(line=self._right_line, fit=right_fit, allx=new_right_line_allx)
 
+    #Step 7
     def draw_polygon(self, undist, warped):
         # create an image to draw the lines on
         warp_zero = np.zeros_like(warped).astype(np.uint8)
