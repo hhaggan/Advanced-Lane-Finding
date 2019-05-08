@@ -77,6 +77,7 @@ This part is for adding the text to the frame and doing another warpd of the ima
 [image7]: ./Pictures/chessboard.png "Undistorted"
 [image8]: ./Pictures/thresholded_output.png “Thesholded output”
 [video1]: ./project_video.mp4 "Video"
+---
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 
