@@ -68,12 +68,13 @@ This part is for adding the text to the frame and doing another warpd of the ima
 
 [//]: # (Image References)
 
-[image1]: ./examples/undistort_output.png "Undistorted"
+[image1]: ./Pictures/undistort_output.png "Undistorted"
 [image2]: ./test_images/test1.jpg "Road Transformed"
-[image3]: ./examples/binary_combo_example.jpg "Binary Example"
-[image4]: ./examples/warped_straight_lines.jpg "Warp Example"
-[image5]: ./examples/color_fit_lines.jpg "Fit Visual"
-[image6]: ./examples/example_output.jpg "Output"
+[image3]: ./Pictures/thresholded_output.png “Thesholded output”
+[image3]: ./Pictures/binary_combo_example.jpg "Binary Example"
+[image4]: ./Pictures/warped_straight_lines.jpg "Warp Example"
+[image5]: ./Pictures/color_fit_lines.jpg "Fit Visual"
+[image6]: ./Pictures/example_output.jpg "Output"
 [video1]: ./project_video.mp4 "Video"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
@@ -103,7 +104,7 @@ I then used the output `objpoints` and `imgpoints` to compute the camera calibra
 
 Here is an example of undistorted image. Distortion correction is implemented in the distortion_correction in LaneFinder.py.
 
-![alt text][./Pictures/undistort_output.png]
+![alt text][https://github.com/hhaggan/Advanced-Lane-Finding/blob/master/Pictures/undistort_output.png]
 
 
 #### 2. Thresholds
@@ -111,8 +112,7 @@ Here is an example of undistorted image. Distortion correction is implemented in
 I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines 146 through 202 in `LaneFinder.py`).  Here's an example of my output for this step.  
 
 
-![alt text][./Pictures/thresholded_output.png]
-undistort_output
+![alt text][ https://github.com/hhaggan/Advanced-Lane-Finding/blob/master/Pictures/thresholded_output.png]
 
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
@@ -143,7 +143,7 @@ This resulted in the following source and destination points:
 
 I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
 
-![alt text][./Pictures/.png]
+![alt text][ https://github.com/hhaggan/Advanced-Lane-Finding/blob/master/Pictures/waped_image.png]
 
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
