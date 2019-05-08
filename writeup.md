@@ -69,13 +69,13 @@ This part is for adding the text to the frame and doing another warpd of the ima
 [//]: # (Image References)
 
 [image1]: ./Pictures/undistort_output.png "Undistorted"
-[image7]: ./Pictures/chessboard.png "Undistorted"
 [image2]: ./test_images/test1.jpg "Road Transformed"
-[image8]: ./Pictures/thresholded_output.png “Thesholded output”
 [image3]: ./Pictures/binary_combo_example.jpg "Binary Example"
 [image4]: ./Pictures/ waped_image.jpg "Warp Example"
 [image5]: ./Pictures/color_fit_lines.jpg "Fit Visual"
 [image6]: ./Pictures/example_output.jpg "Output"
+[image7]: ./Pictures/chessboard.png "Undistorted"
+[image8]: ./Pictures/thresholded_output.png “Thesholded output”
 [video1]: ./project_video.mp4 "Video"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
