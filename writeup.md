@@ -69,6 +69,7 @@ This part is for adding the text to the frame and doing another warpd of the ima
 [//]: # (Image References)
 
 [image1]: ./Pictures/undistort_output.png "Undistorted"
+[image7]: ./Pictures/chessboard.png "Undistorted"
 [image2]: ./test_images/test1.jpg "Road Transformed"
 [image3]: ./Pictures/thresholded_output.png “Thesholded output”
 [image3]: ./Pictures/binary_combo_example.jpg "Binary Example"
@@ -95,7 +96,7 @@ I start by preparing "object points", which will be the (x, y, z) coordinates of
 
 I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
 
-![alt text][./Pictures/chessboard.png]
+![alt][./Pictures/image7]
 
 
 ### Pipeline (single images)
@@ -104,7 +105,7 @@ I then used the output `objpoints` and `imgpoints` to compute the camera calibra
 
 Here is an example of undistorted image. Distortion correction is implemented in the distortion_correction in LaneFinder.py.
 
-![alt text][https://github.com/hhaggan/Advanced-Lane-Finding/blob/master/Pictures/undistort_output.png]
+![alt][image1]
 
 
 #### 2. Thresholds
