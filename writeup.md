@@ -71,7 +71,7 @@ This part is for adding the text to the frame and doing another warpd of the ima
 [image1]: ./Pictures/undistort_output.png "Undistorted"
 [image7]: ./Pictures/chessboard.png "Undistorted"
 [image2]: ./test_images/test1.jpg "Road Transformed"
-[image3]: ./Pictures/thresholded_output.png “Thesholded output”
+[image8]: ./Pictures/thresholded_output.png “Thesholded output”
 [image3]: ./Pictures/binary_combo_example.jpg "Binary Example"
 [image4]: ./Pictures/ waped_image.jpg "Warp Example"
 [image5]: ./Pictures/color_fit_lines.jpg "Fit Visual"
@@ -113,7 +113,7 @@ Here is an example of undistorted image. Distortion correction is implemented in
 I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines 146 through 202 in `LaneFinder.py`).  Here's an example of my output for this step.  
 
 
-![alt][image3]
+![alt][image8]
 
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
